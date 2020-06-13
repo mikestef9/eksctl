@@ -133,7 +133,7 @@ func doCreateCluster(cmd *cmdutils.Cmd, ng *api.NodeGroup, params *cmdutils.Crea
 	}
 
 	if params.AutoKubeconfigPath {
-		if params.KubeconfigPath != kubeconfig.DefaultPath {
+		if params.KubeconfigPath != kubeconfig.DefaultPath() {
 			return fmt.Errorf("--kubeconfig and --auto-kubeconfig %s", cmdutils.IncompatibleFlags)
 		}
 		params.KubeconfigPath = kubeconfig.AutoPath(meta.Name)
@@ -401,15 +401,6 @@ func doCreateCluster(cmd *cmdutils.Cmd, ng *api.NodeGroup, params *cmdutils.Crea
 
 		for _, ng := range cfg.ManagedNodeGroups {
 			if err := ctl.WaitForNodes(clientSet, ng); err != nil {
-				return err
-			}
-		}
-
-		if cfg.IsFargateEnabled() {
-			if err := doCreateFargateProfiles(cmd, ctl); err != nil {
-				return err
-			}
-			if err := scheduleCoreDNSOnFargateIfRelevant(cmd, clientSet); err != nil {
 				return err
 			}
 		}

@@ -66,9 +66,12 @@ func addFilesAndScripts(config *cloudconfig.CloudConfig, files configFiles, scri
 	return nil
 }
 
-func makeClientConfigData(spec *api.ClusterConfig, ng *api.NodeGroup, authenticatorCMD string) ([]byte, error) {
-	clientConfig, _, _ := kubeconfig.New(spec, "kubelet", configDir+"ca.crt")
-	kubeconfig.AppendAuthenticator(clientConfig, spec, authenticatorCMD, "", "")
+func makeClientConfigData(spec *api.ClusterConfig, authenticatorCMD string) ([]byte, error) {
+	clientConfig := kubeconfig.
+		NewBuilder(spec.Metadata, spec.Status, "kubelet").
+		UseCertificateAuthorityFile(configDir + "ca.crt").
+		Build()
+	kubeconfig.AppendAuthenticator(clientConfig, spec.Metadata, authenticatorCMD, "", "")
 	clientConfigData, err := clientcmd.Write(*clientConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "serialising kubeconfig for nodegroup")

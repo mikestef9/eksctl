@@ -16,7 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts/stsiface"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/kops/util/pkg/slice"
 )
 
 const (
@@ -246,7 +245,7 @@ var (
 	DefaultNodeVolumeType = NodeVolumeTypeGP2
 
 	// DefaultNodeVolumeSize defines the default root volume size
-	DefaultNodeVolumeSize = 0
+	DefaultNodeVolumeSize = 80
 )
 
 // Enabled return pointer to true value
@@ -341,7 +340,12 @@ func supportedSpotAllocationStrategies() []string {
 
 // isSpotAllocationStrategySupported returns true if the spot allocation strategy is supported for ASG
 func isSpotAllocationStrategySupported(allocationStrategy string) bool {
-	return slice.Contains(supportedSpotAllocationStrategies(), allocationStrategy)
+	for _, strategy := range supportedSpotAllocationStrategies() {
+		if strategy == allocationStrategy {
+			return true
+		}
+	}
+	return false
 }
 
 // EKSResourceAccountID provides worker node resources(ami/ecr image) in different aws account
@@ -447,7 +451,7 @@ type ProviderConfig struct {
 type ClusterConfig struct {
 	metav1.TypeMeta
 
-	Metadata *ClusterMeta `json:"metadata"`
+	Metadata *ClusterMeta `json:"metadata" jsonschema:"required"`
 
 	// +optional
 	IAM *ClusterIAM `json:"iam,omitempty"`
@@ -555,17 +559,18 @@ func NewNodeGroup() *NodeGroup {
 		VolumeType:      &DefaultNodeVolumeType,
 		IAM: &NodeGroupIAM{
 			WithAddonPolicies: NodeGroupIAMAddonPolicies{
-				ImageBuilder: Disabled(),
-				AutoScaler:   Disabled(),
-				ExternalDNS:  Disabled(),
-				CertManager:  Disabled(),
-				AppMesh:      Disabled(),
-				EBS:          Disabled(),
-				FSX:          Disabled(),
-				EFS:          Disabled(),
-				ALBIngress:   Disabled(),
-				XRay:         Disabled(),
-				CloudWatch:   Disabled(),
+				ImageBuilder:   Disabled(),
+				AutoScaler:     Disabled(),
+				ExternalDNS:    Disabled(),
+				CertManager:    Disabled(),
+				AppMesh:        Disabled(),
+				AppMeshPreview: Disabled(),
+				EBS:            Disabled(),
+				FSX:            Disabled(),
+				EFS:            Disabled(),
+				ALBIngress:     Disabled(),
+				XRay:           Disabled(),
+				CloudWatch:     Disabled(),
 			},
 		},
 		SSH: &NodeGroupSSH{
@@ -590,17 +595,18 @@ func NewManagedNodeGroup() *ManagedNodeGroup {
 		},
 		IAM: &NodeGroupIAM{
 			WithAddonPolicies: NodeGroupIAMAddonPolicies{
-				ImageBuilder: Disabled(),
-				AutoScaler:   Disabled(),
-				ExternalDNS:  Disabled(),
-				CertManager:  Disabled(),
-				AppMesh:      Disabled(),
-				EBS:          Disabled(),
-				FSX:          Disabled(),
-				EFS:          Disabled(),
-				ALBIngress:   Disabled(),
-				XRay:         Disabled(),
-				CloudWatch:   Disabled(),
+				ImageBuilder:   Disabled(),
+				AutoScaler:     Disabled(),
+				ExternalDNS:    Disabled(),
+				CertManager:    Disabled(),
+				AppMesh:        Disabled(),
+				AppMeshPreview: Disabled(),
+				EBS:            Disabled(),
+				FSX:            Disabled(),
+				EFS:            Disabled(),
+				ALBIngress:     Disabled(),
+				XRay:           Disabled(),
+				CloudWatch:     Disabled(),
 			},
 		},
 	}
@@ -744,11 +750,15 @@ type Repo struct {
 // keep the cluster and the Git repository in sync.
 type Operator struct {
 	// +optional
+	CommitOperatorManifests *bool `json:"commitOperatorManifests,omitempty"` // Commit and push Flux manifests to the Git Repo on install
+	// +optional
 	Label string `json:"label,omitempty"` // e.g. flux
 	// +optional
 	Namespace string `json:"namespace,omitempty"` // e.g. flux
 	// +optional
 	WithHelm *bool `json:"withHelm,omitempty"` // whether to install the Flux Helm Operator or not
+	// +optional
+	ReadOnly bool `json:"readOnly,omitempty"` // Instruct Flux to read-only mode and create the deploy key as read-only
 }
 
 // Profile groups all details on a quickstart profile to enable on the cluster
@@ -832,6 +842,8 @@ type (
 		// +optional
 		AppMesh *bool `json:"appMesh"`
 		// +optional
+		AppMeshPreview *bool `json:"appMeshPreview"`
+		// +optional
 		EBS *bool `json:"ebs"`
 		// +optional
 		FSX *bool `json:"fsx"`
@@ -885,8 +897,9 @@ type (
 	}
 )
 
-// MetricsCollection used by the scaling config
-// https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-as-metricscollection.html
+// MetricsCollection used by the scaling config,
+// see [cloudformation
+// docs](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-as-metricscollection.html)
 type MetricsCollection struct {
 	// +required
 	Granularity string `json:"granularity" jsonschema:"required"`
